@@ -1,4 +1,4 @@
-name: Windows
+name: Test Windows
 
 on:
   workflow_dispatch:
@@ -12,7 +12,6 @@ on:
 jobs:
   msvc:
     if: >-
-      false &&
       !contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       !contains(toJSON(github.event.commits.*.message), '[skip github]')
 
@@ -24,15 +23,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ Win32 ]
-        os: [ windows-2022 ]
-        build_type: [ Debug ]
-        is_pr: 
-          - ${{ github.event_name == 'pull_request' }}
+        arch: [ Win32, x64 ]
+        os: [ windows-2022, windows-2025 ]
+        build_type: [ Debug, RelWithDebInfo ]
 
         exclude:
-          - is_pr: true
-            os: windows-2025
+          - os: windows-2025
+            is_pr: ${{ github.event_name == 'pull_request' }}
 
     env:
       BUILD_DIR: build/
@@ -50,9 +47,9 @@ jobs:
           fi
 
           os=${{ matrix.os }}
-          if [[ "$os" == "windows-2022" ]]; then
+          if [[ "os" == "windows-2022" ]]; then
             generator="Visual Studio 17 2022"
-          elif  [[ "$os" == "windows-2025" ]]; then
+          elif  [[ "os" == "windows-2025" ]]; then
             generator="Visual Studio 18 2026"
           fi
 
@@ -76,9 +73,8 @@ jobs:
           ctest --output-on-failure -C ${{ matrix.build_type }} -V
           cd ..
 
-  clang:
+  clang-cl:
     if: >-
-      false && 
       !contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       !contains(toJSON(github.event.commits.*.message), '[skip github]')
 
@@ -90,15 +86,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ Win32 ]
-        os: [ windows-2022 ]
-        build_type: [ Debug ]
-        is_pr: 
-          - ${{ github.event_name == 'pull_request' }}
+        arch: [ Win32, x64 ]
+        os: [ windows-2022, windows-2025 ]
+        build_type: [ Debug, RelWithDebInfo ]
         
         exclude:
-          - is_pr: true 
-            os: windows-2025
+          - os: windows-2025
+            is_pr: ${{ github.event_name == 'pull_request' }}
 
     env:
       BUILD_DIR: build/
@@ -116,13 +110,14 @@ jobs:
           fi
 
           os=${{ matrix.os }}
-          if [[ "$os" == "windows-2022" ]]; then
+          if [[ "os" == "windows-2022" ]]; then
             generator="Visual Studio 17 2022"
-          elif  [[ "$os" == "windows-2025" ]]; then
+          elif  [[ "os" == "windows-2025" ]]; then
             generator="Visual Studio 18 2026"
           fi
 
           # TODO(shpana): Maybe use CMakePresets.txt
+          # TODO(shpana): Why do not run with CORO flags?
           cmake -S . -B $BUILD_DIR                                                                                     \
               -DYACLIB_CXX_STANDARD=17                                                                                 \
               -DYACLIB_TEST=SINGLE                                                                                     \
@@ -155,15 +150,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ Win32 ]
-        os: [ windows-2022 ]
-        build_type: [ Debug ]
-        is_pr: 
-          - ${{ github.event_name == 'pull_request' }}
+        arch: [ Win32, x64 ]
+        os: [ windows-2022, windows-2025 ]
+        build_type: [ Debug, RelWithDebInfo ]
 
         exclude:
-          - is_pr: true 
-            os: windows-2025
+          - os: windows-2025
+            is_pr: ${{ github.event_name == 'pull_request' }}
 
     env:
       BUILD_DIR: build/
@@ -195,6 +188,7 @@ jobs:
           generator="Ninja"
 
           # TODO(shpana): Maybe use CMakePresets.txt
+          # TODO(shpana): Why do not run with CORO flags?
           cmake -S . -B $BUILD_DIR                                                                                     \
               -DYACLIB_CXX_STANDARD=17                                                                                 \
               -DYACLIB_TEST=SINGLE                                                                                     \
@@ -205,10 +199,10 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build $BUILD_DIR --parallel
+          cmake --build $BUILD_DIR --config ${{ matrix.build_type }} --parallel
       
       - name: Test
         run: |
           cd $BUILD_DIR 
-          ctest --output-on-failure -V
+          ctest --output-on-failure -C ${{ matrix.build_type }} -V
           cd ..
